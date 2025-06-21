@@ -44,18 +44,18 @@ app.use(function(req, res, next) {
 });
 
 // API: List all dogs with size and owner username
-app.get('/api/dogs', function(req, res) {
+app.get('/api/dogs', (req, res) => {
     const sql = `
         SELECT d.name AS dog_name, d.size, u.username AS owner_username
         FROM Dogs d
         JOIN Users u ON d.owner_id = u.user_id
     `;
-    req.db.query(sql, function(error, data) {
-        if (error) {
-            console.log('🐶 Error in /api/dogs:', error.sqlMessage || error.message);
-            return res.status(500).json({ error: 'Unable to retrieve dogs.' });
+    req.db.query(sql, (err, results) => {
+        if (err) {
+            console.error('🐶 Error in /api/dogs:', err.sqlMessage || err);
+            return res.status(500).json({ error: 'Failed to get dogs.' });
         }
-        return res.json(data);
+        res.json(results);
     });
 });
 
