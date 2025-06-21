@@ -1,186 +1,43 @@
+// app.js - Main server configuration file
+
 const express = require('express');
-const session = require('express-session'); //  Support session management
 const path = require('path');
+const session = require('express-session');
+const dotenv = require('dotenv');
+const userRoutes = require('./routes/userRoutes');
+const walkRoutes = require('./routes/walkRoutes');
 
-const server = express();
-const port = process.env.PORT || 3000;
+dotenv.config(); // Load environment variables from .env
 
-// Session middleware
-server.use(session({
-  secret: 'dogwalk-secret-key',
+const app = express();
+
+// Enable parsing of URL-encoded form data (for HTML form submissions)
+app.use(express.urlencoded({ extended: true }));
+
+// Enable JSON body parsing
+app.use(express.json());
+
+// Serve static files from /public (HTML, CSS, JS)
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Configure session middleware
+app.use(session({
+  secret: 'replace_this_with_a_secure_secret', // Use a secure value in production
   resave: false,
-  saveUninitialized: false
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    maxAge: 1000 * 60 * 60 // 1 hour
+  }
 }));
 
-// Serve static files from public folder
-server.use(express.static('public'));
-server.use(express.urlencoded({ extended: true })); //  To parse form data
+// Mount API routes
+app.use('/api/users', userRoutes);   // login, logout, register, session info
+app.use('/api/walks', walkRoutes);   // walk requests, applications, dogs etc.
 
-// Dummy user, dog, and booking data (in-memory)
-const people = [
-  {
- id: 1, username: 'alice123', password: 'pass1', role: 'owner'
-},
-  {
- id: 2, username: 'carol123', password: 'pass2', role: 'owner'
-},
-  {
- id: 3, username: 'bobwalker', password: 'pass3', role: 'walker'
-},
-  {
- id: 4, username: 'newwalker', password: 'pass4', role: 'walker'
-}
-];
-
-const pets = [
-  {
- id: 1, name: 'Max', size: 'medium', ownerRef: 1
-},
-  {
- id: 2, name: 'Bella', size: 'small', ownerRef: 2
-},
-  {
- id: 3, name: 'Rocky', size: 'large', ownerRef: 1
-}
-];
-
-const bookings = [
-  {
-    id: 1,
-    petId: 1,
-    time: '2025-06-10T08:00:00.000Z',
-    location: 'Parklands',
-    duration: 30,
-    walkerId: 3,
-    status: 'completed',
-    rating: 5
-  },
-  {
-    id: 2,
-    petId: 2,
-    time: '2025-06-11T09:30:00.000Z',
-    location: 'City Center',
-    duration: 45,
-    walkerId: 3,
-    status: 'completed',
-    rating: 4
-  },
-  {
-    id: 3,
-    petId: 3,
-    time: '2025-06-12T07:00:00.000Z',
-    location: 'Parklands',
-    duration: 20,
-    walkerId: null,
-    status: 'open',
-    rating: null
-  }
-];
-
-//  POST /login: Authenticate user and redirect based on role
-server.post('/login', (req, res) => {
-  const { username, password } = req.body;
-
-  const foundUser = people.find((u) => u.username === username && u.password === password);
-
-  if (!foundUser) {
-    return res.status(401).send('<h2>Invalid credentials. <a href="/">Try again</a></h2>');
-  }
-
-  // Save user session
-  req.session.user = {
-    id: foundUser.id,
-    username: foundUser.username,
-    role: foundUser.role
-  };
-
-  // Redirect based on role
-  if (foundUser.role === 'owner') {
-    return res.redirect('/owner-dashboard.html');
-  } if (foundUser.role === 'walker') {
-    return res.redirect('/walker-dashboard.html');
-  }
-    return res.status(400).send('Unknown user role.');
-
+// Default route - serve login page
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/index.html'));
 });
 
-//  GET /logout: Clear session and go back to homepage
-server.get('/logout', (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      console.error('Logout failed:', err);
-      return res.status(500).send('Could not log out');
-    }
-    res.clearCookie('connect.sid');
-    res.redirect('/');
-  });
-});
-
-// GET /api/dogs - same as before
-server.get('/api/dogs', (req, res) => {
-  try {
-    const result = pets.map((p) => {
-      const owner = people.find((user) => user.id === p.ownerRef);
-      if (!owner) throw new Error(`Missing owner for dog ID ${p.id}`);
-      return {
-        dog_name: p.name,
-        size: p.size,
-        owner_username: owner.username
-      };
-    });
-    res.json(result);
-  } catch (error) {
-    console.error('GET /api/dogs failed:', error.message);
-    res.status(500).json({ error: 'Unable to fetch dog list' });
-  }
-});
-
-// GET /api/walkrequests/open - same as before
-server.get('/api/walkrequests/open', (req, res) => {
-  try {
-    const openBookings = bookings.filter((b) => b.status === 'open');
-    const response = openBookings.map((b) => {
-      const dog = pets.find((d) => d.id === b.petId);
-      const owner = people.find((u) => u.id === dog.ownerRef);
-      return {
-        request_id: b.id,
-        dog_name: dog.name,
-        requested_time: b.time,
-        duration_minutes: b.duration,
-        location: b.location,
-        owner_username: owner ? owner.username : null
-      };
-    });
-    res.json(response);
-  } catch (error) {
-    console.error('GET /api/walkrequests/open failed:', error.message);
-    res.status(500).json({ error: 'Could not retrieve open walk requests' });
-  }
-});
-
-// GET /api/walkers/summary - same as before
-server.get('/api/walkers/summary', (req, res) => {
-  try {
-    const walkerList = people.filter((p) => p.role === 'walker');
-    const summary = walkerList.map((w) => {
-      const completed = bookings.filter((b) => b.walkerId === w.id && b.status === 'completed');
-      const ratings = completed.map((b) => b.rating).filter((r) => r !== null);
-      const average = ratings.length > 0 ? parseFloat((ratings.reduce((a, b) => a + b) / ratings.length).toFixed(1)) : null;
-      return {
-        walker_username: w.username,
-        total_ratings: ratings.length,
-        average_rating: average,
-        completed_walks: completed.length
-      };
-    });
-    res.json(summary);
-  } catch (error) {
-    console.error('GET /api/walkers/summary failed:', error.message);
-    res.status(500).json({ error: 'Could not compute walker stats' });
-  }
-});
-
-// Start the server
-server.listen(port, () => {
-  console.log(`App is active on port ${port}`);
-});
+module.exports = app;
