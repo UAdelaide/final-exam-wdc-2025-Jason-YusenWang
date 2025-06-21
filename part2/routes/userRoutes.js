@@ -14,7 +14,9 @@ router.get('/', async (req, res) => {
 
 // Route: Create a new user entry
 router.post('/register', async (req, res) => {
-  const { username, email, password, role } = req.body;
+  const {
+ username, email, password, role
+} = req.body;
 
   try {
     const [result] = await db.query(
@@ -62,7 +64,7 @@ router.post('/login', async (req, res) => {
 
 // Route: Logout — terminate session and clear cookie
 router.get('/logout', (req, res) => {
-  req.session.destroy(err => {
+  req.session.destroy((err) => {
     if (err) {
       console.error('Logout error occurred:', err);
       return res.status(500).send('Logout failed');
