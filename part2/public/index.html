@@ -12,11 +12,11 @@
     <h1 class="mb-4 text-primary">Welcome to the Dog Walking Service!</h1>
     <p class="lead">Connect with trusted walkers for your beloved dog!</p>
 
-    <!-- Login form replaces dashboard buttons -->
+    <!-- Corrected login form using username -->
     <form action="/api/users/login" method="POST" class="border p-4 rounded bg-white" style="max-width: 400px;">
       <div class="mb-3">
-        <label for="email" class="form-label">Email address</label>
-        <input type="email" name="email" id="email" class="form-control" required>
+        <label for="username" class="form-label">Username</label>
+        <input type="text" name="username" id="username" class="form-control" required>
       </div>
       <div class="mb-3">
         <label for="password" class="form-label">Password</label>
