@@ -2,109 +2,108 @@ const express = require('express');
 const mysql = require('mysql2');
 const app = express();
 
-// Setup connection to the MySQL database
+app.use(express.json());
+
+// Setup MySQL connection
 const db = mysql.createConnection({
-    host: '127.0.0.1', // changed from 'localhost' to fix ECONNREFUSED error
+    host: '127.0.0.1',
     user: 'root',
-    password: '', // if you set a password, put it here
+    password: '',
     database: 'DogWalkService'
 });
 
-// Connect to the database
+// Connect and seed test data
 db.connect((err) => {
     if (err) {
         console.error('Database connection error:', err);
         process.exit(1);
-    } else {
-        console.log('Connected to MySQL.');
-
-        // Insert sample data if not exists (for testing)
-        const seedQueries = [
-            `INSERT IGNORE INTO Users (user_id, username, role) VALUES
-                (1, 'alice123', 'owner'),
-                (2, 'bobwalker', 'walker'),
-                (3, 'newwalker', 'walker')`,
-
-            `INSERT IGNORE INTO Dogs (dog_id, name, size, owner_id) VALUES
-                (1, 'Max', 'medium', 1),
-                (2, 'Bella', 'small', 1)`,
-
-            `INSERT IGNORE INTO WalkRequests (request_id, dog_id, walker_id, request_time, duration_minutes, location, status) VALUES
-                (1, 1, 2, '2025-06-10T08:00:00.000Z', 30, 'Parklands', 'open'),
-                (2, 2, 2, '2025-06-11T08:00:00.000Z', 45, 'City Park', 'completed')`,
-
-            `INSERT IGNORE INTO WalkRatings (rating_id, walker_id, rating) VALUES
-                (1, 2, 4),
-                (2, 2, 5)`
-        ];
-
-        seedQueries.forEach(query => {
-            db.query(query, (err) => {
-                if (err) console.error('Seed Error:', err);
-            });
-        });
     }
+    console.log('Connected to MySQL.');
+
+    const seedQueries = [
+        `INSERT IGNORE INTO Users (user_id, username, email, password_hash, role) VALUES
+            (1, 'alice123', 'alice@example.com', 'hashed1', 'owner'),
+            (2, 'bobwalker', 'bob@example.com', 'hashed2', 'walker'),
+            (3, 'newwalker', 'new@example.com', 'hashed3', 'walker')`,
+
+        `INSERT IGNORE INTO Dogs (dog_id, owner_id, name, size) VALUES
+            (1, 1, 'Max', 'medium'),
+            (2, 1, 'Bella', 'small')`,
+
+        `INSERT IGNORE INTO WalkRequests (request_id, dog_id, requested_time, duration_minutes, location, status) VALUES
+            (1, 1, '2025-06-10 08:00:00', 30, 'Parklands', 'open'),
+            (2, 2, '2025-06-11 08:00:00', 45, 'City Park', 'completed')`,
+
+        `INSERT IGNORE INTO WalkApplications (application_id, request_id, walker_id, status) VALUES
+            (1, 2, 2, 'accepted')`,
+
+        `INSERT IGNORE INTO WalkRatings (rating_id, request_id, walker_id, owner_id, rating) VALUES
+            (1, 2, 2, 1, 4)`
+    ];
+
+    seedQueries.forEach(query => {
+        db.query(query, (err) => {
+            if (err) console.error('Seed Error:', err.sqlMessage);
+        });
+    });
 });
 
-// Provide shared DB connection to all routes
+// Share db connection to all routes
 app.use((req, res, next) => {
     req.db = db;
     next();
 });
 
-// Route: return all dogs with their size and owner's username
+// GET /api/dogs — all dogs with size and owner's username
 app.get('/api/dogs', (req, res) => {
-    const query = `
+    const sql = `
         SELECT d.name AS dog_name, d.size, u.username AS owner_username
         FROM Dogs d
         JOIN Users u ON d.owner_id = u.user_id
     `;
-    req.db.query(query, (err, results) => {
-        if (err) {
-            console.error('SQL Error:', err);
-            return res.status(500).json({ error: 'Failed to get dogs.' });
-        }
+    req.db.query(sql, (err, results) => {
+        if (err) return res.status(500).json({ error: 'Failed to fetch dogs.' });
         res.json(results);
     });
 });
 
-// Route: return all open walk requests with dog name, time, location, and owner
+// GET /api/walkrequests/open — open walk requests with dog name, time, location, owner
 app.get('/api/walkrequests/open', (req, res) => {
-    const query = `
-        SELECT r.request_id, d.name AS dog_name, r.request_time, r.duration_minutes, r.location, u.username AS owner_username
+    const sql = `
+        SELECT r.request_id, d.name AS dog_name, r.requested_time, r.duration_minutes, r.location, u.username AS owner_username
         FROM WalkRequests r
         JOIN Dogs d ON r.dog_id = d.dog_id
         JOIN Users u ON d.owner_id = u.user_id
         WHERE r.status = 'open'
     `;
-    req.db.query(query, (err, results) => {
-        if (err) return res.status(500).json({ error: 'Failed to get open requests.' });
+    req.db.query(sql, (err, results) => {
+        if (err) return res.status(500).json({ error: 'Failed to fetch walk requests.' });
         res.json(results);
     });
 });
 
-// Route: return summary of walkers with their average rating and completed walks
+// GET /api/walkers/summary — average rating and completed walk count per walker
 app.get('/api/walkers/summary', (req, res) => {
-    const query = `
+    const sql = `
         SELECT u.username AS walker_username,
                COUNT(r.rating_id) AS total_ratings,
                IFNULL(AVG(r.rating), 0) AS average_rating,
                SUM(CASE WHEN wr.status = 'completed' THEN 1 ELSE 0 END) AS completed_walks
         FROM Users u
         LEFT JOIN WalkRatings r ON u.user_id = r.walker_id
-        LEFT JOIN WalkRequests wr ON wr.walker_id = u.user_id
+        LEFT JOIN WalkApplications wa ON wa.walker_id = u.user_id AND wa.status = 'accepted'
+        LEFT JOIN WalkRequests wr ON wr.request_id = wa.request_id
         WHERE u.role = 'walker'
-        GROUP BY u.username
+        GROUP BY u.user_id
     `;
-    req.db.query(query, (err, results) => {
-        if (err) return res.status(500).json({ error: 'Failed to get walker summary.' });
+    req.db.query(sql, (err, results) => {
+        if (err) return res.status(500).json({ error: 'Failed to fetch walker summary.' });
         res.json(results);
     });
 });
 
-// Start the Express server
+// Start server
 const PORT = 3000;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
-
