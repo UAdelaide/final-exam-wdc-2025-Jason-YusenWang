@@ -9,9 +9,14 @@
 </head>
 <body class="bg-light">
   <div id="app" class="container py-4">
-    <h1 class="mb-4 text-primary">Owner Dashboard</h1>
+    <h1 class="mb-2 text-primary">Owner Dashboard</h1>
 
-    <!-- Walk request form -->
+    <!-- Logout button that triggers a GET request to logout API -->
+    <form action="/api/users/logout" method="GET" class="mb-4">
+      <button type="submit" class="btn btn-outline-danger">Logout</button>
+    </form>
+
+    <!-- Walk request creation form -->
     <div class="card mb-4">
       <div class="card-header bg-primary text-white">
         Create New Walk Request
@@ -39,11 +44,11 @@
       </div>
     </div>
 
-    <!-- Success or error messages -->
+    <!-- Feedback messages -->
     <div v-if="message" class="alert alert-info">{{ message }}</div>
     <div v-if="error" class="alert alert-danger">{{ error }}</div>
 
-    <!-- List of walk requests -->
+    <!-- Display owner's walk requests -->
     <h2 class="mb-3">My Walk Requests</h2>
     <div class="row" v-if="walks.length > 0">
       <div class="col-md-6 mb-4" v-for="walk in walks" :key="walk.request_id">
@@ -64,6 +69,7 @@
     <p v-else>No walk requests yet.</p>
   </div>
 
+  <!-- Vue 3 app setup -->
   <script>
     const { createApp, ref, onMounted } = Vue;
 
