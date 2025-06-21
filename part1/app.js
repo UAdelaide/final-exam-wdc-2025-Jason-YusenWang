@@ -27,13 +27,6 @@ app.use((req, res, next) => {
 });
 
 // Route: return all dogs with their size and owner's username
-app.get('/api/dogs', (req, res) => {
-    const query = `SELECT dog_name, size, owner_username FROM Dogs`;
-    req.db.query(query, (err, results) => {
-        if (err) return res.status(500).json({ error: 'Failed to get dogs.' });
-        res.json(results);
-    });
-});
 
 // Route: return all open walk requests with dog name, time, location, and owner
 app.get('/api/walkrequests/open', (req, res) => {
@@ -50,7 +43,6 @@ app.get('/api/walkrequests/open', (req, res) => {
     });
 });
 
-// Route: return a summary of all walkers including total ratings, average score, and completed walks
 app.get('/api/walkers/summary', (req, res) => {
     const query = `
         SELECT u.username AS walker_username,
