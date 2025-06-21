@@ -12,6 +12,9 @@ dotenv.config();
 
 const app = express();
 
+// Enable parsing of URL-encoded form data (for HTML form submissions)
+app.use(express.urlencoded({ extended: true }));
+
 // Enable JSON body parsing for incoming requests
 app.use(express.json());
 
@@ -20,7 +23,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Configure session middleware to manage user sessions
 app.use(session({
-  secret: 'replace_this_with_a_secure_secret', // replace in production
+  secret: 'replace_this_with_a_secure_secret', // Replace with strong secret in production
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -28,6 +31,14 @@ app.use(session({
     maxAge: 1000 * 60 * 60 // 1 hour session
   }
 }));
+
+// Mount route modules
+app.use('/api/users', userRoutes);
+app.use('/api/walks', walkRoutes);
+
+// Export the app for use in bin/www or testing
+module.exports = app;
+
 
 // Mount API routes under /api prefix
 app.use('/api/users', userRoutes);  // Handles login, logout, session, user-related logic
