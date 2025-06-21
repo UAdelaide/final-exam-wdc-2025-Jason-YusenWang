@@ -4,7 +4,7 @@ const app = express();
 
 // Setup connection to the MySQL database
 const db = mysql.createConnection({
-    host: 'localhost',
+    host: '127.0.0.1',  // changed from 'localhost' to fix ECONNREFUSED error
     user: 'root',
     password: '', // if you set a password, put it here
     database: 'DogWalkService'
@@ -26,7 +26,7 @@ app.use((req, res, next) => {
     next();
 });
 
-// Define API routes here
+// Route: return all dogs with their size and owner's username
 app.get('/api/dogs', (req, res) => {
     const query = `SELECT dog_name, size, owner_username FROM Dogs`;
     req.db.query(query, (err, results) => {
@@ -35,6 +35,7 @@ app.get('/api/dogs', (req, res) => {
     });
 });
 
+// Route: return all open walk requests with dog name, time, location, and owner
 app.get('/api/walkrequests/open', (req, res) => {
     const query = `
         SELECT r.request_id, d.dog_name, r.request_time, r.duration_minutes, r.location, u.username AS owner_username
@@ -49,6 +50,7 @@ app.get('/api/walkrequests/open', (req, res) => {
     });
 });
 
+// Route: return a summary of all walkers including total ratings, average score, and completed walks
 app.get('/api/walkers/summary', (req, res) => {
     const query = `
         SELECT u.username AS walker_username,
@@ -67,9 +69,8 @@ app.get('/api/walkers/summary', (req, res) => {
     });
 });
 
-// Start server
+// Start the Express server
 const PORT = 3000;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
-
