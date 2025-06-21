@@ -6,7 +6,7 @@ const app = express();
 const db = mysql.createConnection({
     host: 'localhost',
     user: 'root',
-    password: '',  // if you set a password, put it here
+    password: '', // if you set a password, put it here
     database: 'DogWalkService'
 });
 
