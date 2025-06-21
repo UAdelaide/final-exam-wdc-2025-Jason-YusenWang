@@ -1,73 +1,126 @@
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var logger = require('morgan');
-var mysql = require('mysql2/promise');
-
-var app = express();
-
-app.use(logger('dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
+const express = require('express');
+const mysql = require('mysql2/promise');
+const app = express();
+const port = process.env.PORT || 3000;
 
 let db;
 
 (async () => {
   try {
-    // Connect to MySQL without specifying a database
-    const connection = await mysql.createConnection({
-      host: '127.0.0.1',
-      user: 'root',
-      password: '' // Set your MySQL root password
-    });
-
-    // Create the database if it doesn't exist
-    await connection.query('CREATE DATABASE IF NOT EXISTS testdb');
-    await connection.end();
-
-    // Now connect to the created database
     db = await mysql.createConnection({
       host: '127.0.0.1',
       user: 'root',
       password: '',
-      database: 'testdb'
+      database: 'DogWalkService'
     });
 
-    // Create a table if it doesn't exist
-    await db.execute(`
-      CREATE TABLE IF NOT EXISTS books (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        title VARCHAR(255),
-        author VARCHAR(255)
-      )
+    // Insert users
+    await db.query("DELETE FROM WalkRatings");
+    await db.query("DELETE FROM WalkApplications");
+    await db.query("DELETE FROM WalkRequests");
+    await db.query("DELETE FROM Dogs");
+    await db.query("DELETE FROM Users");
+
+    await db.query(`
+      INSERT INTO Users (username, email, password_hash, role) VALUES
+      ('alice123', 'alice@example.com', 'pass', 'owner'),
+      ('carol123', 'carol@example.com', 'pass', 'owner'),
+      ('bobwalker', 'bob@example.com', 'pass', 'walker'),
+      ('newwalker', 'new@example.com', 'pass', 'walker')
     `);
 
-    // Insert data if table is empty
-    const [rows] = await db.execute('SELECT COUNT(*) AS count FROM books');
-    if (rows[0].count === 0) {
-      await db.execute(`
-        INSERT INTO books (title, author) VALUES
-        ('1984', 'George Orwell'),
-        ('To Kill a Mockingbird', 'Harper Lee'),
-        ('Brave New World', 'Aldous Huxley')
-      `);
-    }
+    await db.query(`
+      INSERT INTO Dogs (name, size, owner_id) VALUES
+      ('Max', 'medium', 1),
+      ('Bella', 'small', 2)
+    `);
+
+    await db.query(`
+      INSERT INTO WalkRequests (dog_id, requested_time, duration_minutes, location, status)
+      VALUES
+      (1, '2025-06-10 08:00:00', 30, 'Parklands', 'open'),
+      (1, '2025-06-11 09:00:00', 60, 'Downtown', 'completed'),
+      (2, '2025-06-12 10:30:00', 45, 'Suburb Park', 'completed')
+    `);
+
+    await db.query(`
+      UPDATE WalkRequests SET status='completed' WHERE request_id IN (2,3);
+    `);
+
+    await db.query(`
+      INSERT INTO WalkRatings (request_id, walker_id, owner_id, rating, comments)
+      VALUES
+      (2, 3, 1, 5, 'Great walk!'),
+      (3, 3, 2, 4, 'Nice walk')
+    `);
+
+    console.log('Test data inserted.');
   } catch (err) {
-    console.error('Error setting up database. Ensure Mysql is running: service mysql start', err);
+    console.error('Database setup failed:', err.message);
   }
 })();
 
-// Route to return books as JSON
-app.get('/', async (req, res) => {
+// /api/dogs
+app.get('/api/dogs', async (req, res) => {
   try {
-    const [books] = await db.execute('SELECT * FROM books');
-    res.json(books);
+    const [rows] = await db.query(`
+      SELECT Dogs.name AS dog_name, Dogs.size, Users.username AS owner_username
+      FROM Dogs JOIN Users ON Dogs.owner_id = Users.user_id
+    `);
+    res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch books' });
+    res.status(500).json({ error: 'Failed to get dogs.' });
   }
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
+// /api/walkrequests/open
+app.get('/api/walkrequests/open', async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT WalkRequests.request_id, Dogs.name AS dog_name, WalkRequests.requested_time,
+             WalkRequests.duration_minutes, WalkRequests.location, Users.username AS owner_username
+      FROM WalkRequests
+      JOIN Dogs ON WalkRequests.dog_id = Dogs.dog_id
+      JOIN Users ON Dogs.owner_id = Users.user_id
+      WHERE WalkRequests.status = 'open'
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to get walk requests.' });
+  }
+});
 
-module.exports = app;
+// /api/walkers/summary
+app.get('/api/walkers/summary', async (req, res) => {
+  try {
+    const [walkers] = await db.query(`SELECT user_id, username FROM Users WHERE role = 'walker'`);
+    const result = [];
+
+    for (const walker of walkers) {
+      const [ratings] = await db.query(`
+        SELECT rating FROM WalkRatings WHERE walker_id = ?
+      `, [walker.user_id]);
+
+      const totalRatings = ratings.length;
+      const avgRating = totalRatings > 0
+        ? parseFloat((ratings.reduce((sum, r) => sum + r.rating, 0) / totalRatings).toFixed(1))
+        : null;
+
+      result.push({
+        walker_username: walker.username,
+        total_ratings: totalRatings,
+        average_rating: avgRating,
+        completed_walks: totalRatings
+      });
+    }
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to get walkers summary.' });
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});
+
