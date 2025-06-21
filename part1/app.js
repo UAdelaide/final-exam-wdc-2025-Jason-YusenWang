@@ -22,7 +22,6 @@ const requests = [
   { id: 1004, dogId: 103, time: '2025-06-22 11:00', location: 'Mall',     duration: 20, walkerId: null, status: 'open',      rating: null }, // Unaccepted request
   { id: 1005, dogId: 101, time: '2025-06-18 07:30', location: 'Neighborhood', duration: 15, walkerId: 4, status: 'completed', rating: 4 }    // Completed by walkerB, rating 4
 ];
-// *Note*: In a real application, the above data would be stored in a database. Here it's simplified as in-memory objects for demonstration.
 
 // Route 1: Get all dog information (name, size, owner's username)
 app.get('/api/dogs', (req, res) => {
