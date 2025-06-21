@@ -23,10 +23,17 @@
       </div>
       <div class="card-body">
         <form @submit.prevent="submitWalkRequest">
+          <!-- Replaced numeric input with a dropdown populated dynamically -->
           <div class="mb-3">
-            <label class="form-label">Dog ID</label>
-            <input v-model="form.dog_id" type="number" class="form-control" required>
+            <label for="dogDropdown" class="form-label">Select Your Dog</label>
+            <select v-model="form.dog_id" id="dogDropdown" name="dog_id" class="form-select" required>
+              <option disabled value="">-- Choose a dog --</option>
+              <option v-for="dog in myDogs" :key="dog.dog_id" :value="dog.dog_id">
+                {{ dog.name }}
+              </option>
+            </select>
           </div>
+
           <div class="mb-3">
             <label class="form-label">Requested Date & Time</label>
             <input v-model="form.requested_time" type="datetime-local" class="form-control" required>
@@ -85,6 +92,7 @@
         const walks = ref([]);
         const message = ref('');
         const error = ref('');
+        const myDogs = ref([]); // List of dogs owned by current user
 
         async function loadWalks() {
           try {
@@ -92,6 +100,17 @@
             walks.value = await res.json();
           } catch (err) {
             error.value = 'Failed to load walk requests';
+          }
+        }
+
+        // Fetch list of dogs belonging to logged-in owner
+        async function loadMyDogs() {
+          try {
+            const res = await fetch('/api/dogs/mine');
+            const data = await res.json();
+            myDogs.value = data;
+          } catch (err) {
+            error.value = 'Failed to load your dogs';
           }
         }
 
@@ -123,6 +142,7 @@
 
         onMounted(() => {
           loadWalks();
+          loadMyDogs(); // Load dropdown options on mount
         });
 
         return {
@@ -130,6 +150,7 @@
           walks,
           message,
           error,
+          myDogs,
           submitWalkRequest
         };
       }
