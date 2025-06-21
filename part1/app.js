@@ -1,8 +1,22 @@
 const express = require('express');
+const session = require('express-session'); // ✅ Support session management
+const path = require('path');
+
 const server = express();
 const port = process.env.PORT || 3000;
 
-// Dummy memory data for testing
+// Session middleware
+server.use(session({
+  secret: 'dogwalk-secret-key',
+  resave: false,
+  saveUninitialized: false
+}));
+
+// Serve static files from public folder
+server.use(express.static('public'));
+server.use(express.urlencoded({ extended: true })); //  To parse form data
+
+// Dummy user, dog, and booking data (in-memory)
 const people = [
   { id: 1, username: 'alice123', password: 'pass1', role: 'owner' },
   { id: 2, username: 'carol123', password: 'pass2', role: 'owner' },
@@ -49,7 +63,46 @@ const bookings = [
   }
 ];
 
-// Endpoint 1: /api/dogs
+//  POST /login: Authenticate user and redirect based on role
+server.post('/login', (req, res) => {
+  const { username, password } = req.body;
+
+  const foundUser = people.find(u => u.username === username && u.password === password);
+
+  if (!foundUser) {
+    return res.status(401).send('<h2>Invalid credentials. <a href="/">Try again</a></h2>');
+  }
+
+  // Save user session
+  req.session.user = {
+    id: foundUser.id,
+    username: foundUser.username,
+    role: foundUser.role
+  };
+
+  // Redirect based on role
+  if (foundUser.role === 'owner') {
+    return res.redirect('/owner-dashboard.html');
+  } else if (foundUser.role === 'walker') {
+    return res.redirect('/walker-dashboard.html');
+  } else {
+    return res.status(400).send('Unknown user role.');
+  }
+});
+
+//  GET /logout: Clear session and go back to homepage
+server.get('/logout', (req, res) => {
+  req.session.destroy(err => {
+    if (err) {
+      console.error('Logout failed:', err);
+      return res.status(500).send('Could not log out');
+    }
+    res.clearCookie('connect.sid');
+    res.redirect('/');
+  });
+});
+
+// GET /api/dogs - same as before
 server.get('/api/dogs', (req, res) => {
   try {
     const result = pets.map(p => {
@@ -68,7 +121,7 @@ server.get('/api/dogs', (req, res) => {
   }
 });
 
-// Endpoint 2: /api/walkrequests/open
+// GET /api/walkrequests/open - same as before
 server.get('/api/walkrequests/open', (req, res) => {
   try {
     const openBookings = bookings.filter(b => b.status === 'open');
@@ -91,7 +144,7 @@ server.get('/api/walkrequests/open', (req, res) => {
   }
 });
 
-// Endpoint 3: /api/walkers/summary
+// GET /api/walkers/summary - same as before
 server.get('/api/walkers/summary', (req, res) => {
   try {
     const walkerList = people.filter(p => p.role === 'walker');
@@ -113,7 +166,7 @@ server.get('/api/walkers/summary', (req, res) => {
   }
 });
 
-// Launch the server
+// Start the server
 server.listen(port, () => {
   console.log(`App is active on port ${port}`);
 });
