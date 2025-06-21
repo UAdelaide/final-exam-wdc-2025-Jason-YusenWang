@@ -97,5 +97,5 @@ app.get('/api/walkers/summary', (req, res) => {
 
 // Start server
 app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+  console.log(`Server is running on port ${port}`);curl http://localhost:3000/api/dogs
 });
