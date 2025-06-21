@@ -36,9 +36,9 @@ router.get('/me', (req, res) => {
   res.json(req.session.user);
 });
 
-// Login route - matches by username, not email
+// Login route - matches by username
 router.post('/login', async (req, res) => {
-  const { username, password } = req.body; // Use 'username' field
+  const { username, password } = req.body;
 
   try {
     const [rows] = await db.query(
@@ -54,14 +54,22 @@ router.post('/login', async (req, res) => {
     // Save user data into session
     req.session.user = rows[0];
 
-    res.json({ message: 'User logged in successfully', user: rows[0] });
+    // Redirect based on role
+    if (rows[0].role === 'owner') {
+      return res.redirect('/owner-dashboard.html');
+    } else if (rows[0].role === 'walker') {
+      return res.redirect('/walker-dashboard.html');
+    } else {
+      return res.status(403).send('Unknown role');
+    }
+
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Unable to process login' });
   }
 });
 
-// Logout route - ends session and clears cookie
+// Logout route
 router.get('/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
