@@ -2,9 +2,9 @@ var posts = [];
 var search = null;
 
 /*
- * Hides the main part of the page to show the Ask a Question section
+ * Hide main content and show ask section
  */
-function showAsk(){
+function showAsk() {
     var main = document.getElementById("main");
     var ask = document.getElementById("ask");
     main.style.display = "none";
@@ -12,10 +12,9 @@ function showAsk(){
 }
 
 /*
- * Hides the Ask a Question section of the page to show the main part,
- * clearing the question input fields.
+ * Hide ask section, reset inputs, and return to main content
  */
-function showMain(){
+function showMain() {
     var main = document.getElementById("main");
     var ask = document.getElementById("ask");
     ask.style.display = "none";
@@ -27,10 +26,9 @@ function showMain(){
 }
 
 /*
- * Creates a new question/post & send it to the server, before triggering an update for the main part of the page.
+ * Send new post data to server and refresh the post list
  */
-function createPost(){
-
+function createPost() {
     search = null;
 
     let post = {
@@ -40,68 +38,50 @@ function createPost(){
         upvotes: 0
     };
 
-    // Create AJAX Request
     var xmlhttp = new XMLHttpRequest();
-
-    // Define function to run on response
-    xmlhttp.onreadystatechange = function() {
-        if (this.readyState == 4 && this.status == 200) {
-            // Update the page on success
+    xmlhttp.onreadystatechange = function () {
+        if (this.readyState === 4 && this.status === 200) {
             loadPosts();
             showMain();
         }
     };
 
-    // Open connection to server & send the post data using a POST request
-    // We will cover POST requests in more detail in week 8
     xmlhttp.open("POST", "/addpost", true);
     xmlhttp.setRequestHeader("Content-type", "application/json");
     xmlhttp.send(JSON.stringify(post));
-
 }
 
 /*
- * Updates the search term then reloads the posts shown
+ * Update current search keyword and refresh displayed posts
  */
-function searchPosts(){
-
+function searchPosts() {
     search = document.getElementById('post-search').value.toUpperCase();
     updatePosts();
-
 }
 
-
 /*
- * Reloads the posts shown on the page
- * Iterates over the array of post objects, rendering HTML for each and appending it to the page
- * If a search term is being used
+ * Render all visible posts to the page based on search term
  */
 function updatePosts() {
-
-    // Reset the page
     document.getElementById('post-list').innerHTML = '';
 
-    // Iterate over each post in the array by index
-    for(let i=0; i<posts.length; i++){
-
+    for (let i = 0; i < posts.length; i++) {
         let post = posts[i];
 
-        // Check if a search term used.
-        if(search !== null){
-            // If so, skip this question/post if title or content doesn't match
-            if (post.title.toUpperCase().indexOf(search) < 0 &&
-                post.content.toUpperCase().indexOf(search) < 0 ) {
+        if (search !== null) {
+            if (
+                post.title.toUpperCase().indexOf(search) < 0
+                && post.content.toUpperCase().indexOf(search) < 0
+            ) {
                 continue;
             }
         }
 
-        // Generate a set of spans for each of the tags
         let tagSpans = '';
-        for(let tag of post.tags){
-            tagSpans = tagSpans + `<span class="tag">${tag}</span>`;
+        for (let tag of post.tags) {
+            tagSpans += `<span class="tag">${tag}</span>`;
         }
 
-        // Generate the post/question element and populate its inner HTML
         let postDiv = document.createElement("DIV");
         postDiv.classList.add("post");
 
@@ -119,95 +99,98 @@ function updatePosts() {
             </div>
         `;
 
-        // Append the question/post to the page
         document.getElementById("post-list").appendChild(postDiv);
-
     }
-
-
 }
 
 /*
- * Loads posts from the server
- * - Send an AJAX GET request to the server
- * - JSON Array of posts sent in response
- * - Update the
+ * Load posts from the server and refresh page
  */
 function loadPosts() {
-
-    // Create AJAX Request
     var xmlhttp = new XMLHttpRequest();
-
-    // Define function to run on response
-    xmlhttp.onreadystatechange = function() {
-        if (this.readyState == 4 && this.status == 200) {
-            // Parse the JSON and update the posts array
+    xmlhttp.onreadystatechange = function () {
+        if (this.readyState === 4 && this.status === 200) {
             posts = JSON.parse(this.responseText);
-            // Call the updatePosts function to update the page
             updatePosts();
         }
     };
 
-    // Open connection to server
     xmlhttp.open("GET", "/posts", true);
-
-    // Send request
     xmlhttp.send();
-
 }
 
-
 /*
- * Increase the votes for a given post, then update the page
+ * Increase upvote count of a post
  */
 function upvote(index) {
-    posts[index].upvotes ++;
+    posts[index].upvotes++;
     updatePosts();
 }
 
 /*
- * Decrease the votes for a given post, then update the page
+ * Decrease upvote count of a post
  */
 function downvote(index) {
-    posts[index].upvotes --;
+    posts[index].upvotes--;
     updatePosts();
 }
 
-
-function login(){
-
+/*
+ * Submit login request with username and password
+ */
+function login() {
     let user = {
         user: document.getElementById('username').value,
         pass: document.getElementById('password').value
     };
 
-    // Create AJAX Request
     var xmlhttp = new XMLHttpRequest();
-
-    // Define function to run on response
-    xmlhttp.onreadystatechange = function() {
-        if (this.readyState == 4 && this.status == 200) {
-            alert("Welcome "+this.responseText);
-        } else if (this.readyState == 4 && this.status >= 400) {
+    xmlhttp.onreadystatechange = function () {
+        if (this.readyState === 4 && this.status === 200) {
+            alert("Welcome " + this.responseText);
+        } else if (this.readyState === 4 && this.status >= 400) {
             alert("Login failed");
         }
     };
 
-    // Open connection to server & send the post data using a POST request
-    // We will cover POST requests in more detail in week 8
     xmlhttp.open("POST", "/users/login", true);
     xmlhttp.setRequestHeader("Content-type", "application/json");
     xmlhttp.send(JSON.stringify(user));
-
 }
 
-function logout(){
-
-    // Create AJAX Request
+/*
+ * Send logout request to server
+ */
+function logout() {
     var xmlhttp = new XMLHttpRequest();
-
-    // Open connection to server & send the post data using a POST request
     xmlhttp.open("POST", "/users/logout", true);
     xmlhttp.send();
-
 }
+
+/*
+ * === Task 15: Fetch user's dogs and populate dropdown ===
+ */
+function loadDogsForOwner() {
+    const dogDropdown = document.getElementById('dog-id-select');
+    if (!dogDropdown) return;
+
+    fetch('/api/dogs/mine')
+        .then((res) => res.json())
+        .then((dogs) => {
+            dogDropdown.innerHTML = '<option value="">-- Choose a dog --</option>';
+            dogs.forEach((dog) => {
+                const opt = document.createElement('option');
+                opt.value = dog.dog_id;
+                opt.textContent = dog.name;
+                dogDropdown.appendChild(opt);
+            });
+        })
+        .catch((err) => {
+            console.error('Error fetching dog list:', err);
+        });
+}
+
+// Call loadDogsForOwner when the page loads (if relevant)
+window.addEventListener('DOMContentLoaded', () => {
+    loadDogsForOwner();
+});
