@@ -1,72 +1,75 @@
 const express = require('express');
-const mysql = require('mysql2/promise');
+const mysql = require('mysql2');
 const app = express();
-const port = 8080;
 
-// Create a connection pool to MySQL database
-const pool = mysql.createPool({
-  host: 'localhost',
-  user: 'root',
-  database: 'DogWalkService',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+// Setup connection to the MySQL database
+const db = mysql.createConnection({
+    host: 'localhost',
+    user: 'root',
+    password: '',  // if you set a password, put it here
+    database: 'DogWalkService'
 });
 
-// Route 1: Return all dogs with their size and owner's username
-app.get('/api/dogs', async (req, res) => {
-  try {
-    const [rows] = await pool.query(`
-      SELECT d.name AS dog_name, d.size, u.username AS owner_username
-      FROM Dogs d
-      JOIN Users u ON d.owner_id = u.user_id
-    `);
-    res.json(rows);
-  } catch (error) {
-    res.status(500).json({ error: 'Could not fetch dog list.' });
-  }
+// Connect to the database
+db.connect(err => {
+    if (err) {
+        console.error('Database connection error:', err);
+        process.exit(1);
+    } else {
+        console.log('Connected to MySQL.');
+    }
 });
 
-// Route 2: Return all open walk requests with dog name and owner's username
-app.get('/api/walkrequests/open', async (req, res) => {
-  try {
-    const [rows] = await pool.query(`
-      SELECT wr.request_id, d.name AS dog_name, wr.requested_time,
-             wr.duration_minutes, wr.location, u.username AS owner_username
-      FROM WalkRequests wr
-      JOIN Dogs d ON wr.dog_id = d.dog_id
-      JOIN Users u ON d.owner_id = u.user_id
-      WHERE wr.status = 'open'
-    `);
-    res.json(rows);
-  } catch (error) {
-    res.status(500).json({ error: 'Could not retrieve open walk requests.' });
-  }
+// Provide shared DB connection to all routes
+app.use((req, res, next) => {
+    req.db = db;
+    next();
 });
 
-// Route 3: Return each walker's average rating and completed walk count
-app.get('/api/walkers/summary', async (req, res) => {
-  try {
-    const [rows] = await pool.query(`
-      SELECT
-        u.username AS walker_username,
-        COUNT(r.rating_id) AS total_ratings,
-        ROUND(AVG(r.rating), 1) AS average_rating,
-        SUM(CASE WHEN wr.status = 'completed' THEN 1 ELSE 0 END) AS completed_walks
-      FROM Users u
-      LEFT JOIN WalkRatings r ON u.user_id = r.walker_id
-      LEFT JOIN WalkApplications a ON u.user_id = a.walker_id
-      LEFT JOIN WalkRequests wr ON a.request_id = wr.request_id
-      WHERE u.role = 'walker'
-      GROUP BY u.user_id
-    `);
-    res.json(rows);
-  } catch (error) {
-    res.status(500).json({ error: 'Could not load walker summary.' });
-  }
+// Define API routes here
+app.get('/api/dogs', (req, res) => {
+    const query = `SELECT dog_name, size, owner_username FROM Dogs`;
+    req.db.query(query, (err, results) => {
+        if (err) return res.status(500).json({ error: 'Failed to get dogs.' });
+        res.json(results);
+    });
 });
 
-// Start the Express server
-app.listen(port, () => {
-  console.log(`API server available at http://localhost:${port}`);
+app.get('/api/walkrequests/open', (req, res) => {
+    const query = `
+        SELECT r.request_id, d.dog_name, r.request_time, r.duration_minutes, r.location, u.username AS owner_username
+        FROM WalkRequests r
+        JOIN Dogs d ON r.dog_id = d.dog_id
+        JOIN Users u ON d.owner_id = u.user_id
+        WHERE r.status = 'open'
+    `;
+    req.db.query(query, (err, results) => {
+        if (err) return res.status(500).json({ error: 'Failed to get open requests.' });
+        res.json(results);
+    });
 });
+
+app.get('/api/walkers/summary', (req, res) => {
+    const query = `
+        SELECT u.username AS walker_username,
+               COUNT(r.rating_id) AS total_ratings,
+               IFNULL(AVG(r.rating), 0) AS average_rating,
+               SUM(CASE WHEN wr.status = 'completed' THEN 1 ELSE 0 END) AS completed_walks
+        FROM Users u
+        LEFT JOIN WalkRatings r ON u.user_id = r.walker_id
+        LEFT JOIN WalkRequests wr ON wr.walker_id = u.user_id
+        WHERE u.role = 'walker'
+        GROUP BY u.username
+    `;
+    req.db.query(query, (err, results) => {
+        if (err) return res.status(500).json({ error: 'Failed to get walker summary.' });
+        res.json(results);
+    });
+});
+
+// Start server
+const PORT = 3000;
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
+
