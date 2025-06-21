@@ -59,4 +59,27 @@ router.post('/:id/apply', async (req, res) => {
   }
 });
 
+// GET /api/walks/mydogs - Return dogs that belong to the logged-in owner
+router.get('/mydogs', async (req, res) => {
+  // Check if user is logged in and has 'owner' role
+  if (!req.session.user || req.session.user.role !== 'owner') {
+    return res.status(401).json({ error: 'Not authorized. Must be logged in as an owner.' });
+  }
+
+  const ownerId = req.session.user.user_id;
+
+  try {
+    // Retrieve dog_id and name for all dogs belonging to the owner
+    const [rows] = await db.query(
+      'SELECT dog_id, name FROM Dogs WHERE owner_id = ?',
+      [ownerId]
+    );
+
+    res.json(rows); // Send back array of { dog_id, name }
+  } catch (error) {
+    console.error('Error retrieving dogs:', error);
+    res.status(500).json({ error: 'Failed to fetch dogs for current user.' });
+  }
+});
+
 module.exports = router;
