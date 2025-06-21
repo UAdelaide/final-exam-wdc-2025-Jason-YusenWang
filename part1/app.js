@@ -1,5 +1,5 @@
 const express = require('express');
-const session = require('express-session'); // ✅ Support session management
+const session = require('express-session'); //  Support session management
 const path = require('path');
 
 const server = express();
