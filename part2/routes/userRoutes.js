@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../models/db');
 
-// Route: Get all users (for testing or admin use)
+// Get all users (for testing only)
 router.get('/', async (req, res) => {
   try {
     const [rows] = await db.query('SELECT user_id, username, email, role FROM Users');
@@ -12,11 +12,9 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Route: Create a new user entry
+// Optional: Register route for adding test users
 router.post('/register', async (req, res) => {
-  const {
- username, email, password, role
-} = req.body;
+  const { username, email, password, role } = req.body;
 
   try {
     const [result] = await db.query(
@@ -30,7 +28,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Route: Get session data for currently authenticated user
+// Get current session user
 router.get('/me', (req, res) => {
   if (!req.session || !req.session.user) {
     return res.status(401).json({ error: 'No user session found' });
@@ -38,31 +36,32 @@ router.get('/me', (req, res) => {
   res.json(req.session.user);
 });
 
-// Route: Authenticate user and initiate session
+// Login route - matches by username, not email
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+  const { username, password } = req.body; // Use 'username' field
 
   try {
     const [rows] = await db.query(
       `SELECT user_id, username, role FROM Users
-       WHERE email = ? AND password_hash = ?`,
-      [email, password]
+       WHERE username = ? AND password_hash = ?`,
+      [username, password]
     );
 
     if (rows.length === 0) {
       return res.status(401).json({ error: 'Incorrect login credentials' });
     }
 
-    // Save user details in session for later verification
+    // Save user data into session
     req.session.user = rows[0];
 
     res.json({ message: 'User logged in successfully', user: rows[0] });
   } catch (error) {
+    console.error('Login error:', error);
     res.status(500).json({ error: 'Unable to process login' });
   }
 });
 
-// Route: Logout — terminate session and clear cookie
+// Logout route - ends session and clears cookie
 router.get('/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
@@ -70,10 +69,9 @@ router.get('/logout', (req, res) => {
       return res.status(500).send('Logout failed');
     }
 
-    res.clearCookie('connect.sid'); // Remove cookie to clear session on client
-    res.redirect('/'); // Redirect back to login form
+    res.clearCookie('connect.sid');
+    res.redirect('/');
   });
 });
 
 module.exports = router;
-
