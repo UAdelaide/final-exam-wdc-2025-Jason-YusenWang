@@ -1,25 +1,25 @@
 const express = require('express');
-const app = express();
+const server = express();
 const port = process.env.PORT || 3000;
 
-// Simulated test data (in-memory)
-const users = [
+// Dummy memory data for testing
+const people = [
   { id: 1, username: 'alice123', password: 'pass1', role: 'owner' },
   { id: 2, username: 'carol123', password: 'pass2', role: 'owner' },
   { id: 3, username: 'bobwalker', password: 'pass3', role: 'walker' },
   { id: 4, username: 'newwalker', password: 'pass4', role: 'walker' }
 ];
 
-const dogs = [
-  { id: 1, name: 'Max', size: 'medium', ownerId: 1 },
-  { id: 2, name: 'Bella', size: 'small', ownerId: 2 },
-  { id: 3, name: 'Rocky', size: 'large', ownerId: 1 }
+const pets = [
+  { id: 1, name: 'Max', size: 'medium', ownerRef: 1 },
+  { id: 2, name: 'Bella', size: 'small', ownerRef: 2 },
+  { id: 3, name: 'Rocky', size: 'large', ownerRef: 1 }
 ];
 
-const requests = [
+const bookings = [
   {
     id: 1,
-    dogId: 1,
+    petId: 1,
     time: '2025-06-10T08:00:00.000Z',
     location: 'Parklands',
     duration: 30,
@@ -29,7 +29,7 @@ const requests = [
   },
   {
     id: 2,
-    dogId: 2,
+    petId: 2,
     time: '2025-06-11T09:30:00.000Z',
     location: 'City Center',
     duration: 45,
@@ -39,7 +39,7 @@ const requests = [
   },
   {
     id: 3,
-    dogId: 3,
+    petId: 3,
     time: '2025-06-12T07:00:00.000Z',
     location: 'Parklands',
     duration: 20,
@@ -49,71 +49,71 @@ const requests = [
   }
 ];
 
-// /api/dogs route
-app.get('/api/dogs', (req, res) => {
+// Endpoint 1: /api/dogs
+server.get('/api/dogs', (req, res) => {
   try {
-    const result = dogs.map(dog => {
-      const owner = users.find(u => u.id === dog.ownerId);
-      if (!owner) throw new Error(`Owner not found for dog ${dog.id}`);
+    const result = pets.map(p => {
+      const owner = people.find(user => user.id === p.ownerRef);
+      if (!owner) throw new Error(`Missing owner for dog ID ${p.id}`);
       return {
-        dog_name: dog.name,
-        size: dog.size,
+        dog_name: p.name,
+        size: p.size,
         owner_username: owner.username
       };
     });
     res.json(result);
-  } catch (err) {
-    console.error('Error in /api/dogs:', err.message);
-    res.status(500).json({ error: 'Failed to get dogs.' });
+  } catch (error) {
+    console.error('GET /api/dogs failed:', error.message);
+    res.status(500).json({ error: 'Unable to fetch dog list' });
   }
 });
 
-// /api/walkrequests/open route
-app.get('/api/walkrequests/open', (req, res) => {
+// Endpoint 2: /api/walkrequests/open
+server.get('/api/walkrequests/open', (req, res) => {
   try {
-    const open = requests.filter(r => r.status === 'open');
-    const result = open.map(r => {
-      const dog = dogs.find(d => d.id === r.dogId);
-      const owner = users.find(u => u.id === dog.ownerId);
+    const openBookings = bookings.filter(b => b.status === 'open');
+    const response = openBookings.map(b => {
+      const dog = pets.find(d => d.id === b.petId);
+      const owner = people.find(u => u.id === dog.ownerRef);
       return {
-        request_id: r.id,
+        request_id: b.id,
         dog_name: dog.name,
-        requested_time: r.time,
-        duration_minutes: r.duration,
-        location: r.location,
+        requested_time: b.time,
+        duration_minutes: b.duration,
+        location: b.location,
         owner_username: owner ? owner.username : null
       };
     });
-    res.json(result);
-  } catch (err) {
-    console.error('Error in /api/walkrequests/open:', err.message);
-    res.status(500).json({ error: 'Failed to get open walk requests.' });
+    res.json(response);
+  } catch (error) {
+    console.error('GET /api/walkrequests/open failed:', error.message);
+    res.status(500).json({ error: 'Could not retrieve open walk requests' });
   }
 });
 
-// /api/walkers/summary route
-app.get('/api/walkers/summary', (req, res) => {
+// Endpoint 3: /api/walkers/summary
+server.get('/api/walkers/summary', (req, res) => {
   try {
-    const walkers = users.filter(u => u.role === 'walker');
-    const result = walkers.map(walker => {
-      const completed = requests.filter(r => r.walkerId === walker.id && r.status === 'completed');
-      const ratings = completed.filter(r => r.rating !== null).map(r => r.rating);
-      const avg = ratings.length > 0 ? parseFloat((ratings.reduce((a, b) => a + b) / ratings.length).toFixed(1)) : null;
+    const walkerList = people.filter(p => p.role === 'walker');
+    const summary = walkerList.map(w => {
+      const completed = bookings.filter(b => b.walkerId === w.id && b.status === 'completed');
+      const ratings = completed.map(b => b.rating).filter(r => r !== null);
+      const average = ratings.length > 0 ? parseFloat((ratings.reduce((a, b) => a + b) / ratings.length).toFixed(1)) : null;
       return {
-        walker_username: walker.username,
+        walker_username: w.username,
         total_ratings: ratings.length,
-        average_rating: avg,
+        average_rating: average,
         completed_walks: completed.length
       };
     });
-    res.json(result);
-  } catch (err) {
-    console.error('Error in /api/walkers/summary:', err.message);
-    res.status(500).json({ error: 'Failed to get walker summary.' });
+    res.json(summary);
+  } catch (error) {
+    console.error('GET /api/walkers/summary failed:', error.message);
+    res.status(500).json({ error: 'Could not compute walker stats' });
   }
 });
 
-// Start the server
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+// Launch the server
+server.listen(port, () => {
+  console.log(`App is active on port ${port}`);
 });
