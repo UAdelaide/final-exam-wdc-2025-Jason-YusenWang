@@ -4,7 +4,7 @@ const app = express();
 
 // Setup connection to the MySQL database
 const db = mysql.createConnection({
-    host: '127.0.0.1',  // changed from 'localhost' to fix ECONNREFUSED error
+    host: '127.0.0.1', // changed from 'localhost' to fix ECONNREFUSED error
     user: 'root',
     password: '', // if you set a password, put it here
     database: 'DogWalkService'
