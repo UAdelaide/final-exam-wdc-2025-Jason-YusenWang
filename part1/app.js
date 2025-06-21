@@ -28,7 +28,11 @@ app.use((req, res, next) => {
 
 // Route: return all dogs with their size and owner's username
 app.get('/api/dogs', (req, res) => {
-    const query = `SELECT name AS dog_name, size FROM Dogs`;
+    const query = `
+        SELECT d.name AS dog_name, d.size, u.username AS owner_username
+        FROM Dogs d
+        JOIN Users u ON d.owner_id = u.user_id
+    `;
     req.db.query(query, (err, results) => {
         if (err) return res.status(500).json({ error: 'Failed to get dogs.' });
         res.json(results);
@@ -38,7 +42,7 @@ app.get('/api/dogs', (req, res) => {
 // Route: return all open walk requests with dog name, time, location, and owner
 app.get('/api/walkrequests/open', (req, res) => {
     const query = `
-        SELECT r.request_id, d.dog_name, r.request_time, r.duration_minutes, r.location, u.username AS owner_username
+        SELECT r.request_id, d.name AS dog_name, r.request_time, r.duration_minutes, r.location, u.username AS owner_username
         FROM WalkRequests r
         JOIN Dogs d ON r.dog_id = d.dog_id
         JOIN Users u ON d.owner_id = u.user_id
@@ -50,6 +54,7 @@ app.get('/api/walkrequests/open', (req, res) => {
     });
 });
 
+// Route: return summary of walkers with their average rating and completed walks
 app.get('/api/walkers/summary', (req, res) => {
     const query = `
         SELECT u.username AS walker_username,
