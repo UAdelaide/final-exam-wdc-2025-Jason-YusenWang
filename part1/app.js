@@ -17,6 +17,32 @@ db.connect((err) => {
         process.exit(1);
     } else {
         console.log('Connected to MySQL.');
+
+        // Insert sample data if not exists (for testing)
+        const seedQueries = [
+            `INSERT IGNORE INTO Users (user_id, username, role) VALUES
+                (1, 'alice123', 'owner'),
+                (2, 'bobwalker', 'walker'),
+                (3, 'newwalker', 'walker')`,
+
+            `INSERT IGNORE INTO Dogs (dog_id, name, size, owner_id) VALUES
+                (1, 'Max', 'medium', 1),
+                (2, 'Bella', 'small', 1)`,
+
+            `INSERT IGNORE INTO WalkRequests (request_id, dog_id, walker_id, request_time, duration_minutes, location, status) VALUES
+                (1, 1, 2, '2025-06-10T08:00:00.000Z', 30, 'Parklands', 'open'),
+                (2, 2, 2, '2025-06-11T08:00:00.000Z', 45, 'City Park', 'completed')`,
+
+            `INSERT IGNORE INTO WalkRatings (rating_id, walker_id, rating) VALUES
+                (1, 2, 4),
+                (2, 2, 5)`
+        ];
+
+        seedQueries.forEach(query => {
+            db.query(query, (err) => {
+                if (err) console.error('Seed Error:', err);
+            });
+        });
     }
 });
 
@@ -45,7 +71,7 @@ app.get('/api/dogs', (req, res) => {
 // Route: return all open walk requests with dog name, time, location, and owner
 app.get('/api/walkrequests/open', (req, res) => {
     const query = `
-        SELECT r.request_id, d.name AS dog_name, r.requested_time, r.duration_minutes, r.location, u.username AS owner_username
+        SELECT r.request_id, d.name AS dog_name, r.request_time, r.duration_minutes, r.location, u.username AS owner_username
         FROM WalkRequests r
         JOIN Dogs d ON r.dog_id = d.dog_id
         JOIN Users u ON d.owner_id = u.user_id
@@ -81,3 +107,4 @@ const PORT = 3000;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
+
