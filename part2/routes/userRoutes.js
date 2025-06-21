@@ -2,19 +2,22 @@ const express = require('express');
 const router = express.Router();
 const db = require('../models/db');
 
-// Get all users (for testing only)
+// Route to get all users (for testing purposes only)
 router.get('/', async (req, res) => {
   try {
     const [rows] = await db.query('SELECT user_id, username, email, role FROM Users');
     res.json(rows);
   } catch (error) {
+    // Return error if query fails
     res.status(500).json({ error: 'Could not retrieve users from database' });
   }
 });
 
-// Optional: Register route for adding test users
+// Optional: Route to register a test user (not used in production)
 router.post('/register', async (req, res) => {
-  const { username, email, password, role } = req.body;
+  const {
+ username, email, password, role
+} = req.body;
 
   try {
     const [result] = await db.query(
@@ -28,7 +31,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Get current session user
+// Route to get the currently logged-in user from session
 router.get('/me', (req, res) => {
   if (!req.session || !req.session.user) {
     return res.status(401).json({ error: 'No user session found' });
@@ -36,40 +39,41 @@ router.get('/me', (req, res) => {
   res.json(req.session.user);
 });
 
-// Login route - matches by username
+// Login route - uses form submission (not fetch) and redirects by role
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
   try {
+    // Look up user with matching credentials
     const [rows] = await db.query(
       `SELECT user_id, username, role FROM Users
        WHERE username = ? AND password_hash = ?`,
       [username, password]
     );
 
+    // If no user found, redirect to login page with error
     if (rows.length === 0) {
-      return res.status(401).json({ error: 'Incorrect login credentials' });
+      return res.redirect('/?error=1');
     }
 
-    // Save user data into session
+    // Save user to session
     req.session.user = rows[0];
 
     // Redirect based on role
     if (rows[0].role === 'owner') {
       return res.redirect('/owner-dashboard.html');
-    } else if (rows[0].role === 'walker') {
+    } if (rows[0].role === 'walker') {
       return res.redirect('/walker-dashboard.html');
-    } else {
-      return res.status(403).send('Unknown role');
     }
+      return res.status(403).send('Unknown role');
 
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Unable to process login' });
+    res.status(500).send('Unable to process login');
   }
 });
 
-// Logout route
+// Logout route - destroys session and returns to homepage
 router.get('/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
