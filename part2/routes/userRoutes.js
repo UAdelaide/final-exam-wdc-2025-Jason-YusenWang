@@ -2,17 +2,17 @@ const express = require('express');
 const router = express.Router();
 const db = require('../models/db');
 
-// GET all users (for testing/admin purposes)
+// Route: Get all users (for testing or admin use)
 router.get('/', async (req, res) => {
   try {
     const [rows] = await db.query('SELECT user_id, username, email, role FROM Users');
     res.json(rows);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch users' });
+    res.status(500).json({ error: 'Could not retrieve users from database' });
   }
 });
 
-// POST: Register a new user
+// Route: Create a new user entry
 router.post('/register', async (req, res) => {
   const { username, email, password, role } = req.body;
 
@@ -22,22 +22,21 @@ router.post('/register', async (req, res) => {
        VALUES (?, ?, ?, ?)`,
       [username, email, password, role]
     );
-
-    res.status(201).json({ message: 'User registered successfully', user_id: result.insertId });
+    res.status(201).json({ message: 'User successfully created', user_id: result.insertId });
   } catch (error) {
-    res.status(500).json({ error: 'Registration failed' });
+    res.status(500).json({ error: 'Error occurred during registration' });
   }
 });
 
-// GET: Fetch currently logged-in user info
+// Route: Get session data for currently authenticated user
 router.get('/me', (req, res) => {
   if (!req.session || !req.session.user) {
-    return res.status(401).json({ error: 'User not logged in' });
+    return res.status(401).json({ error: 'No user session found' });
   }
   res.json(req.session.user);
 });
 
-// POST: User login
+// Route: Authenticate user and initiate session
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -49,29 +48,30 @@ router.post('/login', async (req, res) => {
     );
 
     if (rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'Incorrect login credentials' });
     }
 
-    // Store user info in session
+    // Save user details in session for later verification
     req.session.user = rows[0];
 
-    res.json({ message: 'Login successful', user: rows[0] });
+    res.json({ message: 'User logged in successfully', user: rows[0] });
   } catch (error) {
-    res.status(500).json({ error: 'Login failed' });
+    res.status(500).json({ error: 'Unable to process login' });
   }
 });
 
-// GET: Logout route — ends session and clears cookie
+// Route: Logout — terminate session and clear cookie
 router.get('/logout', (req, res) => {
-  req.session.destroy(error => {
-    if (error) {
-      console.warn('Issue occurred while logging out:', error);
-      return res.status(500).send('Logout process encountered an error.');
+  req.session.destroy(err => {
+    if (err) {
+      console.error('Logout error occurred:', err);
+      return res.status(500).send('Logout failed');
     }
 
-    res.clearCookie('connect.sid'); // Remove session cookie from browser
-    res.redirect('/'); // Redirect to home/login screen
+    res.clearCookie('connect.sid'); // Remove cookie to clear session on client
+    res.redirect('/'); // Redirect back to login form
   });
 });
 
 module.exports = router;
+
