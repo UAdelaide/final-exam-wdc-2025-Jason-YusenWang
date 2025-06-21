@@ -18,16 +18,30 @@ server.use(express.urlencoded({ extended: true })); //  To parse form data
 
 // Dummy user, dog, and booking data (in-memory)
 const people = [
-  { id: 1, username: 'alice123', password: 'pass1', role: 'owner' },
-  { id: 2, username: 'carol123', password: 'pass2', role: 'owner' },
-  { id: 3, username: 'bobwalker', password: 'pass3', role: 'walker' },
-  { id: 4, username: 'newwalker', password: 'pass4', role: 'walker' }
+  {
+ id: 1, username: 'alice123', password: 'pass1', role: 'owner'
+},
+  {
+ id: 2, username: 'carol123', password: 'pass2', role: 'owner'
+},
+  {
+ id: 3, username: 'bobwalker', password: 'pass3', role: 'walker'
+},
+  {
+ id: 4, username: 'newwalker', password: 'pass4', role: 'walker'
+}
 ];
 
 const pets = [
-  { id: 1, name: 'Max', size: 'medium', ownerRef: 1 },
-  { id: 2, name: 'Bella', size: 'small', ownerRef: 2 },
-  { id: 3, name: 'Rocky', size: 'large', ownerRef: 1 }
+  {
+ id: 1, name: 'Max', size: 'medium', ownerRef: 1
+},
+  {
+ id: 2, name: 'Bella', size: 'small', ownerRef: 2
+},
+  {
+ id: 3, name: 'Rocky', size: 'large', ownerRef: 1
+}
 ];
 
 const bookings = [
@@ -67,7 +81,7 @@ const bookings = [
 server.post('/login', (req, res) => {
   const { username, password } = req.body;
 
-  const foundUser = people.find(u => u.username === username && u.password === password);
+  const foundUser = people.find((u) => u.username === username && u.password === password);
 
   if (!foundUser) {
     return res.status(401).send('<h2>Invalid credentials. <a href="/">Try again</a></h2>');
@@ -83,16 +97,16 @@ server.post('/login', (req, res) => {
   // Redirect based on role
   if (foundUser.role === 'owner') {
     return res.redirect('/owner-dashboard.html');
-  } else if (foundUser.role === 'walker') {
+  } if (foundUser.role === 'walker') {
     return res.redirect('/walker-dashboard.html');
-  } else {
-    return res.status(400).send('Unknown user role.');
   }
+    return res.status(400).send('Unknown user role.');
+
 });
 
 //  GET /logout: Clear session and go back to homepage
 server.get('/logout', (req, res) => {
-  req.session.destroy(err => {
+  req.session.destroy((err) => {
     if (err) {
       console.error('Logout failed:', err);
       return res.status(500).send('Could not log out');
@@ -105,8 +119,8 @@ server.get('/logout', (req, res) => {
 // GET /api/dogs - same as before
 server.get('/api/dogs', (req, res) => {
   try {
-    const result = pets.map(p => {
-      const owner = people.find(user => user.id === p.ownerRef);
+    const result = pets.map((p) => {
+      const owner = people.find((user) => user.id === p.ownerRef);
       if (!owner) throw new Error(`Missing owner for dog ID ${p.id}`);
       return {
         dog_name: p.name,
@@ -124,10 +138,10 @@ server.get('/api/dogs', (req, res) => {
 // GET /api/walkrequests/open - same as before
 server.get('/api/walkrequests/open', (req, res) => {
   try {
-    const openBookings = bookings.filter(b => b.status === 'open');
-    const response = openBookings.map(b => {
-      const dog = pets.find(d => d.id === b.petId);
-      const owner = people.find(u => u.id === dog.ownerRef);
+    const openBookings = bookings.filter((b) => b.status === 'open');
+    const response = openBookings.map((b) => {
+      const dog = pets.find((d) => d.id === b.petId);
+      const owner = people.find((u) => u.id === dog.ownerRef);
       return {
         request_id: b.id,
         dog_name: dog.name,
@@ -147,10 +161,10 @@ server.get('/api/walkrequests/open', (req, res) => {
 // GET /api/walkers/summary - same as before
 server.get('/api/walkers/summary', (req, res) => {
   try {
-    const walkerList = people.filter(p => p.role === 'walker');
-    const summary = walkerList.map(w => {
-      const completed = bookings.filter(b => b.walkerId === w.id && b.status === 'completed');
-      const ratings = completed.map(b => b.rating).filter(r => r !== null);
+    const walkerList = people.filter((p) => p.role === 'walker');
+    const summary = walkerList.map((w) => {
+      const completed = bookings.filter((b) => b.walkerId === w.id && b.status === 'completed');
+      const ratings = completed.map((b) => b.rating).filter((r) => r !== null);
       const average = ratings.length > 0 ? parseFloat((ratings.reduce((a, b) => a + b) / ratings.length).toFixed(1)) : null;
       return {
         walker_username: w.username,
