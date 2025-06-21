@@ -4,7 +4,6 @@ const app = express();
 
 app.use(express.json());
 
-// Setup MySQL connection
 const db = mysql.createConnection({
     host: '127.0.0.1',
     user: 'root',
@@ -12,7 +11,6 @@ const db = mysql.createConnection({
     database: 'DogWalkService'
 });
 
-// Connect and seed test data
 db.connect((err) => {
     if (err) {
         console.error('Database connection error:', err);
@@ -48,13 +46,11 @@ db.connect((err) => {
     });
 });
 
-// Share db connection to all routes
 app.use((req, res, next) => {
     req.db = db;
     next();
 });
 
-// GET /api/dogs — all dogs with size and owner's username
 app.get('/api/dogs', (req, res) => {
     const sql = `
         SELECT d.name AS dog_name, d.size, u.username AS owner_username
@@ -67,7 +63,6 @@ app.get('/api/dogs', (req, res) => {
     });
 });
 
-// GET /api/walkrequests/open — open walk requests with dog name, time, location, owner
 app.get('/api/walkrequests/open', (req, res) => {
     const sql = `
         SELECT r.request_id, d.name AS dog_name, r.requested_time, r.duration_minutes, r.location, u.username AS owner_username
@@ -82,7 +77,6 @@ app.get('/api/walkrequests/open', (req, res) => {
     });
 });
 
-// GET /api/walkers/summary — average rating and completed walk count per walker
 app.get('/api/walkers/summary', (req, res) => {
     const sql = `
         SELECT u.username AS walker_username,
@@ -102,8 +96,8 @@ app.get('/api/walkers/summary', (req, res) => {
     });
 });
 
-// Start server
 const PORT = 3000;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
+
