@@ -1,49 +1,41 @@
+// app.js - Main server configuration file
+
 const express = require('express');
 const path = require('path');
 const session = require('express-session');
-require('dotenv').config();
+const dotenv = require('dotenv');
+const userRoutes = require('./routes/userRoutes');
+const walkRoutes = require('./routes/walkRoutes');
+
+// Load environment variables from .env file if present
+dotenv.config();
 
 const app = express();
 
-// === Middleware Setup ===
-
-// Allow JSON payloads (for APIs like /api/users/login)
+// Enable JSON body parsing for incoming requests
 app.use(express.json());
 
-// Allow URL-encoded form submissions (e.g. <form method="POST">)
-app.use(express.urlencoded({ extended: true }));
-
-// Configure session middleware to store login status
-app.use(session({
-  secret: 'replace-this-secret',        // Replace with an actual secret in production
-  resave: false,
-  saveUninitialized: false
-}));
-
-// Serve static files like HTML, CSS, JS under /public
+// Serve static files (HTML, CSS, JS) from /public directory
 app.use(express.static(path.join(__dirname, 'public')));
 
-// === Route Handlers ===
-const walkRoutes = require('./routes/walkRoutes');
-const userRoutes = require('./routes/userRoutes');
+// Configure session middleware to manage user sessions
+app.use(session({
+  secret: 'replace_this_with_a_secure_secret', // replace in production
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    maxAge: 1000 * 60 * 60 // 1 hour session
+  }
+}));
 
-// Prefix API endpoints
-app.use('/api/walks', walkRoutes);
-app.use('/api/users', userRoutes);
+// Mount API routes under /api prefix
+app.use('/api/users', userRoutes);  // Handles login, logout, session, user-related logic
+app.use('/api/walks', walkRoutes);  // Handles walk requests, applications, dog info, etc.
 
-// === Root Route ===
-// Serve login page (index.html) when visiting the root
+// Default route - redirect to homepage
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'public/index.html'));
 });
 
-// === Start Server if this is not being used as a module ===
-if (require.main === module) {
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
-  });
-}
-
-// Export app for testing or if used with another file
 module.exports = app;
